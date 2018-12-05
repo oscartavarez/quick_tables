@@ -46,6 +46,7 @@ if(empty($action)){
 
 $source = (isset($_GET["source"]) && $_GET["source"]) ? 1 : 0;
 $config = new Config();
+
 $request = JWT::decode($jwt, $config->secret);
 
 if(isset($request->quick_table) && $request->quick_table->config->secret === $config->secret){
@@ -62,7 +63,7 @@ if(isset($request->quick_table) && $request->quick_table->config->secret === $co
 				exit("invalid action ".$action);
 			}
 		}
-		$data->unsetActions($data->unsetButtons);
+		$quickTable->unsetActions($data->unsetButtons);
 	}
 
 	if($source){
