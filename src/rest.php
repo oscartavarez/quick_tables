@@ -51,9 +51,13 @@ $request = JWT::decode($jwt, $config->secret);
 
 if(isset($request->quick_table) && $request->quick_table->config->secret === $config->secret){
 	$data = $request->quick_table;
+<<<<<<< HEAD
 	$quickTable = new QuickTables($data->table, $data->primaryKey, $data->config);
     $options = json_decode($data->options, true);
 	$quickTable->initOptions($options);
+=======
+	$quickTable = new QuickTables($data->table, $data->config);
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 
 	if(count($data->unsetButtons)){
 		if($action !== "draw"){

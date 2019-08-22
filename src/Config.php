@@ -3,8 +3,8 @@
 
 	class Config{
 		public $dbdriver = 'mysql';
-		public $dbname = 'demodev_schoolworx';
-		public $dbprefix = 'jos_';
+		public $dbname = 'test';
+		public $dbprefix = 'test_';
 		public $dbuser = 'root';
 	   	public $dbpass = '';
 		public $dbhost = 'msw1-db';

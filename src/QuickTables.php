@@ -43,7 +43,11 @@
 		private $unsetButtons = [];
 		private $defaultConfig = null;
 
+<<<<<<< HEAD
 		public function __construct($table = "", $primaryKey = null, $config = null){
+=======
+		public function __construct($table = "", $config = null){
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 			$defaultConfig = new Config();
 			if(count((array)$config)){
 				foreach($config as $key => $value){
@@ -54,10 +58,13 @@
 
 			$this->defaultConfig = $defaultConfig;
 			$this->tableName = $table;
+<<<<<<< HEAD
 
             if($primaryKey){
                 $this->primaryKey = $primaryKey;
             }
+=======
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 		}
 
 		private function table($table, $config){
@@ -75,6 +82,10 @@
 
 			$this->restLocation = $config->path."/rest.php";
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 			$this->config = (array)$config;
 
 			$this->tableObj = $this->db->getTable($table, null);
@@ -96,12 +107,19 @@
 			$data = [];
 			$data["quick_table"] = [
 				"table" => $table,
+<<<<<<< HEAD
                 "primaryKey" => $this->primaryKey,
 				"unsetButtons" => $this->unsetButtons,
 				"config" => $this->config,
 				"columns" => &$this->columns,
                 "columnsName" => &$this->columnsName,
                 "options" => $this->_initOptions
+=======
+				"unsetButtons" => $this->unsetButtons,
+				"config" => $this->config,
+				"columns" => &$this->columns,
+				"columnsName" => &$this->columnsName
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 			];
 
 			$this->jwt = JWT::encode($data, $config->secret);
@@ -290,6 +308,10 @@
 			$_values = [];
 			$out = [];
 
+<<<<<<< HEAD
+=======
+			$actions = implode(" ", $this->getActions());
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 
 			foreach($rows as $row){
 				foreach($row as $key => $value){
@@ -297,6 +319,7 @@
 					$_values[] = $this->tdOpen . $value . $this->tdClose;
 				}
 
+<<<<<<< HEAD
 
 			    $actions = $this->getActions();
 
@@ -304,6 +327,9 @@
 				    $_values[] = $this->tdOpen . implode(" ", $actions) . $this->tdClose;
                 }
 
+=======
+				$_values[] = $this->tdOpen . $actions . $this->tdClose;
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 				$out[] = $this->trOpen . implode(" ", $_values) . $this->trClose;
 				$_values = [];
 			}
@@ -315,6 +341,7 @@
 		}
 
 		public function initOptions(array $options){
+<<<<<<< HEAD
             $csv = new stdClass();
             $csv->extend = "csvHtml5";
             $csv->title = "Data Export";
@@ -340,6 +367,15 @@
 			$_options = json_encode($_options);
 			$this->_initOptions = $_options;
 			return $_options;
+=======
+			$options["ajax"] = ["url" => $this->restLocation, "data" =>  ["access_token" => $this->jwt]];
+			$options["scrollX"] = true;
+			$options["processing"] = true;
+			$options["serverSide"] = true;
+			$options = json_encode($options);
+			$this->_initOptions = $options;
+			return $options;
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 		}
 
 		private function getRealName($name, $columns){
@@ -634,6 +670,7 @@
 				require('ssp.class.php' );
 				$data = (array)SSP::simple( $_GET, $sql_details, $table, $primaryKey, $_columnsNames );
 
+
 				foreach((array)$data['data'] as $key => $value){
 					$id = 0;
 
@@ -660,10 +697,14 @@
 			$this->request = $_GET;
 			$columns = $this->prepareColumnsName();
 			$values = $this->prepareColumnsValues();
+<<<<<<< HEAD
             $options = json_decode($this->_initOptions, true);
             $options['ajax']['url'] = $this->restLocation;
             $options['ajax']['data']['access_token'] = $this->jwt;
             $options = json_encode($options);
+=======
+			$options = $this->initOptions([]);
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 
 			$jquery =  '<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/js/jquery.js"></script>';
 
@@ -675,12 +716,16 @@
 			<div id="quick_tables_div">
 				<link rel="stylesheet" type="text/css" href="'.$this->config["path"].'iziModal/css/iziModal.min.css"/>
 				<link rel="stylesheet" type="text/css" href="'.$this->config["path"].'DataTables/media/css/jquery.dataTables.min.css"/>
+<<<<<<< HEAD
 				<link rel="stylesheet" type="text/css" href="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/css/buttons.dataTables.min.css"/>
 				<link rel="stylesheet" type="text/css" href="'.$this->config["path"].'DataTables/media/plugins/FixedHeader-3.1.4/css/fixedHeader.dataTables.min.css"/>
+=======
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 				<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
 				'.$jquery.'
 				<script type="text/javascript" src="'.$this->config["path"].'iziModal/js/iziModal.min.js"></script>
 				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/js/jquery.dataTables.min.js"></script>
+<<<<<<< HEAD
 				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/js/dataTables.buttons.min.js"></script>
 				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/js/buttons.flash.min.js"></script>
 				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/JSZip-2.5.0/jszip.min.js"></script>
@@ -689,6 +734,8 @@
 				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/js/buttons.html5.min.js"></script>
 				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/js/buttons.print.min.js"></script>
 				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/FixedHeader-3.1.4/js/dataTables.fixedHeader.min.js"></script>
+=======
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 				<table id="quick_tables_table" class="display nowrap">
 					<thead>
 						'.$columns.'
@@ -702,7 +749,11 @@
 				</div>
 				<script>
 					let options = '.$options.';
+<<<<<<< HEAD
                     console.log(options);
+=======
+					console.log(options);
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 					$(document).ready(function () {
 						const quickTablesModal = $("#quick_tables_modal");
 						const server = "'.$this->restLocation.'";
@@ -817,7 +868,11 @@
 				</script>
 				<style>
 					.dataTables_scrollHeadInner, .dataTable{
+<<<<<<< HEAD
                         /** width: 100% !important; **/
+=======
+						width: 100% !important;
+>>>>>>> 87b8e5ee92a163f3319c6ef0d01f1cde186cc18f
 					}
 
 					#quick_tables_modal .View{
