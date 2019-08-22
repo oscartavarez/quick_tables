@@ -1,0 +1,105 @@
+.dataTables_scrollHeadInner, .dataTable{
+	width: 100% !important;
+}
+
+#quick_tables_modal .View{
+	margin: 13px;
+	padding-right: 26px;
+	width: 100%;
+}
+
+#quick_tables_modal .Edit{
+	margin: 13px;
+	padding-right: 26px;
+	width: 100%;
+}
+
+#quick_tables_modal .View th{
+	font-family: Lato-Bold;
+	font-size: 18px;
+	color: #5f5f5f;
+	line-height: 1.4;
+	text-align: left;
+	background-color: #dedede;
+	padding-left: 4px;
+}
+
+#quick_tables_modal .Edit th{
+	font-family: Lato-Bold;
+	font-size: 18px;
+	color: #5f5f5f;
+	line-height: 1.4;
+	text-align: left;
+	background-color: #dedede;
+	padding-left: 4px;
+}
+
+#quick_tables_modal .View td{
+	border-bottom-style: solid;
+	border-bottom-color: #d8d8d8;
+	border-bottom-width: 1px;
+	font-size: 17px;
+}
+
+#quick_tables_modal .Edit td{
+	border-bottom-style: solid;
+	border-bottom-color: #d8d8d8;
+	border-bottom-width: 1px;
+	font-size: 17px;
+}
+
+#quick_tables_modal .Edit td .inputs{
+	width: 100%;
+	padding: 7px;
+}
+
+#quick_tables_modal .Edit td .inputs.readonly{
+	background-color: #c2c2c129;
+}
+
+#quick_tables_table_wrapper > div.dataTables_scroll > div.dataTables_scrollHead > div > table > thead > tr > th{
+	background-color: '.$this->tableHeadColor.';
+}
+
+.dataTables_processing {
+	z-index: 11000 !important;
+}
+
+#quick_tables_table button{
+	border-radius: 6px;
+	border: none;
+	color: black;
+	text-align: center;
+	display: inline-block;
+	font-size: 16px;
+	margin: 4px 2px;
+	-webkit-transition-duration: 0.4s;
+	transition-duration: 0.4s;
+	cursor: pointer;
+	text-decoration: none;
+	box-shadow: 1px 1px 1px #c1c1c1;
+	background-color: '.$this->buttonsColor.'
+}
+
+#quick_tables_modal button{
+	border-radius: 6px;
+	border: none;
+	color: black;
+	text-align: center;
+	display: inline-block;
+	font-size: 16px;
+	margin: 4px 2px;
+	-webkit-transition-duration: 0.4s;
+	transition-duration: 0.4s;
+	cursor: pointer;
+	text-decoration: none;
+	box-shadow: 1px 1px 1px #c1c1c1;
+	background-color: '.$this->buttonsColor.';
+	height: 34px;
+	width: 88px;
+}
+#quick_tables_modal #quick_tables_control{
+	text-align: right;
+	margin-right: 16px;
+	margin-bottom: 10px;
+}

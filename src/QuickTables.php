@@ -1,6 +1,7 @@
 <?php
 	require_once("DB/src/DB.php");
-	require_once("./Config.php");
+	require_once("Config.php");
+	require_once("lib/jwt.php");
 
 	class QuickTables{
 		private $includeJquery = 1;
@@ -30,31 +31,39 @@
 		private $session = null;
 		private $config = null;
 		private $initOptions = [];
-		private $restLocation = "./QuickTables.php";
+		private $_initOptions = '';
+		private $restLocation = "";
 		private	$startAjaxServer = 0;
 		private	$request = [];
 		private $tableHeadColor = 'rgb(193, 193, 193)';
 		private $buttonsColor = '#dedede';
 		private $showPrimaryKey = 1;
+		private $jwt = '';
+		public  $confObject = null;
+		private $unsetButtons = [];
+		private $defaultConfig = null;
 
-		public function __construct(string $table = ""){
-			$this->table($table);
-			$_SESSION['quick_table'] = [
-				"table" => $table,
-				"config" => $this->config,
-				"columns" => &$this->columns,
-				"columnsName" => &$this->columnsName
-			];
+		public function __construct($table = "", $primaryKey = null, $config = null){
+			$defaultConfig = new Config();
+			if(count((array)$config)){
+				foreach($config as $key => $value){
+					$defaultConfig->{$key} = $value;
+				}
 
-			$this->request = $_GET;
+			}
+
+			$this->defaultConfig = $defaultConfig;
+			$this->tableName = $table;
+
+            if($primaryKey){
+                $this->primaryKey = $primaryKey;
+            }
 		}
 
-		public function table($table){
+		private function table($table, $config){
 			if(empty($table)){
 				trigger_error("table must be set", E_USER_ERROR);
 			}
-
-			$config = new Config();
 
 			$this->db = $this->connection(
 				"{$config->dbdriver}:host={$config->dbhost};dbname={$config->dbname};",
@@ -63,6 +72,8 @@
 				$config->dbprefix,
 				$config->dboptions
 			);
+
+			$this->restLocation = $config->path."/rest.php";
 
 			$this->config = (array)$config;
 
@@ -74,11 +85,26 @@
 				$this->columns[$key]->newColumnName = "";
 			}
 
-			$this->primaryKey = $this->getPrimaryKey($this->columns);
+            if(!$this->primaryKey){
+			    $this->primaryKey = $this->getPrimaryKey($this->columns);
+            }
+
 			$this->columnsName = array_map(function($column){return $column->Field;}, $this->columns);
 
 			$this->tableObj->setKey($this->primaryKey);
-			$this->tableName = $table;
+
+			$data = [];
+			$data["quick_table"] = [
+				"table" => $table,
+                "primaryKey" => $this->primaryKey,
+				"unsetButtons" => $this->unsetButtons,
+				"config" => $this->config,
+				"columns" => &$this->columns,
+                "columnsName" => &$this->columnsName,
+                "options" => $this->_initOptions
+			];
+
+			$this->jwt = JWT::encode($data, $config->secret);
 		}
 
 		public function label($fieldName, $newName){
@@ -87,7 +113,6 @@
 					if($this->columns[$key]->Field === $fieldName){
 						$this->columns[$key]->newColumnName = $newName;
 						$this->columnsNameLabels[] = [$fieldName => $newName];
-						//$this->changeColumnName($fieldName, $newName);
 					}
 				}
 			}
@@ -106,23 +131,22 @@
 		private function dp() {
 			$arg_lists = func_get_args();
 			foreach ($arg_lists as $value) {
-				echo '<pre>';
-				print_r($value);
-				echo '</pre>';
+				echo '<pre>';print_r($value);echo '</pre>';
 			}
 		}
 
 		private function dpe(...$args){
-	        $this->dp(...$args);
-	    	exit('stop_exit called');
+	        $this->dp(...$args);exit('stop_exit called');
 		}
 
 		public function connection($dsn, $user, $password, $prefix, $options){
 			if(empty($dsn) || empty($user) || !isset($password)){
-				trigger_error("Bad dsn", E_USER_ERROR);
+				trigger_error("Bad connection dsn", E_USER_ERROR);
 			}
+
 			$this->prefix = $prefix;
-			return new DB($dsn, $user, $password, $prefix, $options);
+			$db = new DB($dsn, $user, $password, $prefix, (array)$options);
+			return $db;
 		}
 
 		public function hide(array $columns){
@@ -170,7 +194,12 @@
 				$columns[] = $this->thOpen . $name . $this->thClose;
 			}
 
-			$columns[] = $this->thOpen . 'Actions' . $this->thClose;
+            $actions = $this->getActions();
+
+            if(count($actions)){
+			    $columns[] = $this->thOpen . 'Actions' . $this->thClose;
+            }
+
 			return $this->trOpen . implode(" ", $columns). $this->trClose;
 		}
 
@@ -228,24 +257,52 @@
 			return $columns;
 		}
 
+		public function unsetActions(array $actions){
+			$this->unsetButtons = $actions;
+		}
+
+		private function getActions($id = 0){
+			$actions = $this->unsetButtons;
+			$buttons = [
+				"view" => "<button class='quick_table_view' data-id='{$id}'><i class='fas fa-eye'></i></button>",
+				"edit" => "<button class='quick_table_edit' data-id='{$id}'><i class='fas fa-pencil-alt'></i></button>",
+				"delete" => "<button class='quick_table_delete' data-id='{$id}'><i class='fas fa-times'></i></button>",
+			];
+
+			foreach ($actions as $key => $action) {
+				if(isset($buttons[$action])){
+					unset($buttons[$action]);
+				}
+			}
+			return $buttons;
+		}
+
 		private function prepareColumnsValues(){
 			$fields = implode(",", $this->getColumns());
 
 			if($this->is_query){
 				$rows = $this->columnsValue;
-			}else {
+			}
+			else {
 				$rows = (array)$this->tableObj->query("SELECT {$fields} FROM `{$this->prefix}{$this->tableName}` LIMIT 0,25");
 			}
 
 			$_values = [];
 			$out = [];
 
+
 			foreach($rows as $row){
 				foreach($row as $key => $value){
-					if($this->primaryKey !== $key){
-						$_values[] = $this->tdOpen . $value . $this->tdClose;
-					}
+					if($this->primaryKey !== $key){}
+					$_values[] = $this->tdOpen . $value . $this->tdClose;
 				}
+
+
+			    $actions = $this->getActions();
+
+                if(count($actions)){
+				    $_values[] = $this->tdOpen . implode(" ", $actions) . $this->tdClose;
+                }
 
 				$out[] = $this->trOpen . implode(" ", $_values) . $this->trClose;
 				$_values = [];
@@ -253,26 +310,41 @@
 			return implode(" ", $out);
 		}
 
-		public function setJquery(int $value = 1){
+		public function setJquery($value = 1){
 			$this->includeJquery($value);
 		}
 
 		public function initOptions(array $options){
-			$options["ajax"] = $this->restLocation;
-			$options["scrollX"] = true;
-			$options["processing"] = true;
-			$options["serverSide"] = true;
-			$this->initOptions = json_encode($options);
+            $csv = new stdClass();
+            $csv->extend = "csvHtml5";
+            $csv->title = "Data Export";
+
+            $excel = new stdClass();
+            $excel->extend = "excelHtml5";
+            $excel->title = "Data Export";
+
+			$_options["ajax"] = ["url" => $this->restLocation, "data" =>  ["access_token" => $this->jwt]];
+			$_options["scrollX"] = true;
+			$_options["processing"] = true;
+			$_options["serverSide"] = true;
+			$_options["orderCellsTop"] = false;
+			$_options["fixedHeader"] = false;
+			$_options["lengthMenu"] = [[10, 25, 50, 100, -1],[10, 25, 50, 100, "All"]];
+			$_options["dom"] = "lBfrtip";
+            $_options["buttons"] = ["copy", $csv, $excel];
+
+            foreach ($options as $optionKey => $optionValue) {
+                $_options[$optionKey] = $optionValue;
+            }
+
+			$_options = json_encode($_options);
+			$this->_initOptions = $_options;
+			return $_options;
 		}
 
 		private function getRealName($name, $columns){
 			$return = $name;
 			foreach($columns as $columnKey => $columnValue){
-				//if($columnValue->Key === "PRI"){
-					//$_columnsNames[] = $columnValue->Field;
-					//continue;
-				//}
-
 				if($name === $columnValue->newColumnName){
 					$return = $columnValue->Field;
 					break;
@@ -332,15 +404,41 @@
 			return $tmpl;
 		}
 
+		private function setFieldValue($value){
+			$fieldValue = $value;
+			if(empty($fieldValue)){
+				if($default){
+					$fieldValue = $default;
+				}
+				elseif($nullable === 'YES') {
+					$fieldValue = NULL;
+				}
+			}
+		}
+
 		private function getEditFields(array $columns, stdClass $data){
 			$fields = [];
 			$row = $data;
 			foreach($columns as $key => $value){
 				$readOnly = $value->Key === "PRI" ? "readonly" : "";
 				$size = [];
+				$class = "class=\"inputs\"";
+				$nullable = $value->Null;
+				$default = $value->Default;
 				$fieldName = $value->newColumnName ? $value->newColumnName : $value->Field;
 				$fieldValue = $row->{$value->Field};
-				$class = "class=\"inputs\"";
+
+				if(empty($fieldValue)){
+					if($default){
+						$fieldValue = $default;
+					}
+					elseif($nullable === 'YES') {
+						$fieldValue = "";
+						if(preg_match("/int/", $value->Type) || preg_match("/tinyint/", $value->Type)){
+							$fieldValue = 0;
+						}
+					}
+				}
 
 				if(!is_numeric($fieldValue)){
 					$fieldValue = $row->{$value->Field} ? htmlspecialchars($row->{$value->Field}) : htmlspecialchars($value->Default);
@@ -357,7 +455,7 @@
 						$class .= " readonly";
 					}
 
-					if(!$showPrimaryKey){
+					if($this->showPrimaryKey){
 						$type = "number";
 					}
 
@@ -468,6 +566,7 @@
 					$cnt++;
 				}
 
+
 				$foundKey = null;
 				foreach($_columnsNames as $key => $value){
 					if($value['db'] === $primaryKey){
@@ -477,6 +576,9 @@
 				}
 
 				if(!is_numeric($foundKey)){
+                    if(!$foundKey){
+				        exit("this table must have a primaryKey");
+                    }
 					$_columnsNames[] = ['db' => $primaryKey, 'dt' => $cnt];
 				}
 
@@ -529,7 +631,7 @@
 				//error_reporting(E_ALL);
 				//ini_set("display_errors", 1);
 
-				require( './ssp.class.php' );
+				require('ssp.class.php' );
 				$data = (array)SSP::simple( $_GET, $sql_details, $table, $primaryKey, $_columnsNames );
 
 				foreach((array)$data['data'] as $key => $value){
@@ -541,11 +643,7 @@
 						$id = array_pop($data['data'][$key]);
 					}
 
-					$data['data'][$key][] = "
-						<button class='quick_table_view' data-id='{$id}'><i class='fas fa-eye'></i></button>
-						<button class='quick_table_edit' data-id='{$id}'><i class='fas fa-pencil-alt'></i></button>
-						<button class='quick_table_delete' data-id='{$id}'><i class='fas fa-times'></i></button>
-					";
+					$data['data'][$key][] = implode(" ", $this->getActions($id));
 				}
 
 				return json_encode($data);
@@ -557,30 +655,40 @@
 			$this->tableHeadColor = $color;
 		}
 
-		public function render(){
+		public function source(){
+			$this->table($this->tableName, $this->defaultConfig);
+			$this->request = $_GET;
 			$columns = $this->prepareColumnsName();
 			$values = $this->prepareColumnsValues();
-			$request = count($_GET) ? $_GET:$_POST;
-			$serverOutPut = $this->startAjaxServer($request);
+            $options = json_decode($this->_initOptions, true);
+            $options['ajax']['url'] = $this->restLocation;
+            $options['ajax']['data']['access_token'] = $this->jwt;
+            $options = json_encode($options);
 
-			if($serverOutPut){
-				return $serverOutPut;
-			}
+			$jquery =  '<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/js/jquery.js"></script>';
 
-			$jquery =  '';
-
-			if($this->includeJquery){
-				$jquery =  '<script type="text/javascript" src="DataTables/media/js/jquery.js"></script>';
+			if(!$this->includeJquery){
+				$jquery =  '';
 			}
 
 			return '
 			<div id="quick_tables_div">
-				<link rel="stylesheet" type="text/css" href="iziModal/css/iziModal.min.css"/>
-				<link rel="stylesheet" type="text/css" href="DataTables/media/css/jquery.dataTables.min.css"/>
+				<link rel="stylesheet" type="text/css" href="'.$this->config["path"].'iziModal/css/iziModal.min.css"/>
+				<link rel="stylesheet" type="text/css" href="'.$this->config["path"].'DataTables/media/css/jquery.dataTables.min.css"/>
+				<link rel="stylesheet" type="text/css" href="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/css/buttons.dataTables.min.css"/>
+				<link rel="stylesheet" type="text/css" href="'.$this->config["path"].'DataTables/media/plugins/FixedHeader-3.1.4/css/fixedHeader.dataTables.min.css"/>
 				<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css" integrity="sha384-mzrmE5qonljUremFsqc01SB46JvROS7bZs3IO2EmfFsd15uHvIt+Y8vEf7N7fWAU" crossorigin="anonymous">
 				'.$jquery.'
-				<script type="text/javascript" src="iziModal/js/iziModal.min.js"></script>
-				<script type="text/javascript" src="DataTables/media/js/jquery.dataTables.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'iziModal/js/iziModal.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/js/jquery.dataTables.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/js/dataTables.buttons.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/js/buttons.flash.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/JSZip-2.5.0/jszip.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/pdfmake-0.1.36/pdfmake.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/pdfmake-0.1.36/vfs_fonts.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/js/buttons.html5.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/Buttons-1.5.2/js/buttons.print.min.js"></script>
+				<script type="text/javascript" src="'.$this->config["path"].'DataTables/media/plugins/FixedHeader-3.1.4/js/dataTables.fixedHeader.min.js"></script>
 				<table id="quick_tables_table" class="display nowrap">
 					<thead>
 						'.$columns.'
@@ -593,11 +701,29 @@
 					<h1>Loading..</h1>
 				</div>
 				<script>
-					let options = '.$this->initOptions.';
+					let options = '.$options.';
+                    console.log(options);
 					$(document).ready(function () {
 						const quickTablesModal = $("#quick_tables_modal");
 						const server = "'.$this->restLocation.'";
-						let table = $("#quick_tables_table").DataTable(options);
+                        let table = null;
+
+                         $("#quick_tables_table thead tr").clone(true).appendTo( "#quick_tables_table thead" );
+                         $("#quick_tables_table thead tr:eq(1) th").each( function (i) {
+                            let title = $(this).text();
+                            $(this).html( \'<input type="text" placeholder="Search \'+title+\'" />\' );
+                            $( "input", this ).on( "keypress", function (e) {
+                                if(e.which !== 13){return;}
+                                if ( table.column(i).search() !== this.value ) {
+                                    table
+                                        .column(i)
+                                        .search( this.value )
+                                        .draw();
+                                }
+                            } );
+                        } );
+
+						table = $("#quick_tables_table").DataTable(options);
 
 						quickTablesModal.iziModal({closeButton: false});
 						quickTablesModal.iziModal("setHeaderColor", "'.$this->tableHeadColor.'");
@@ -610,7 +736,7 @@
 							quickTablesModal.iziModal("open");
 							quickTablesModal.iziModal("startLoading");
 
-							$.getJSON(server, {getRow: true, id: id}, function(res){
+							$.getJSON(server, {getRow: true, id: id, access_token: "'.$this->jwt.'"}, function(res){
 								if(res.hasOwnProperty("row")){
 									quickTablesModal.iziModal("setTitle", "View");
 									quickTablesModal.iziModal("setIcon", "fas fa-eye");
@@ -627,7 +753,7 @@
 							quickTablesModal.iziModal("open");
 							quickTablesModal.iziModal("startLoading");
 
-							$.getJSON(server, {editRow: true, id: id}, function(res){
+							$.getJSON(server, {editRow: true, id: id, access_token: "'.$this->jwt.'"}, function(res){
 								if(res.hasOwnProperty("row")){
 									quickTablesModal.iziModal("setTitle", "Edit");
 									quickTablesModal.iziModal("setIcon", "fas fa-pencil-alt");
@@ -652,7 +778,7 @@
 						$("body").on("click", "#accept_alert", "#quick_tables_modal", function(e){
 							let id = $(this).data("id");
 							quickTablesModal.iziModal("startLoading");
-							$.post(server, {deleteRow: true, id: id}, function(res){
+							$.post(server, {deleteRow: true, id: id, access_token: "'.$this->jwt.'"}, function(res){
 								if(res.hasOwnProperty("deleted") && res.deleted){
 									quickTablesModal.iziModal("stopLoading");
 									quickTablesModal.iziModal("setHeaderColor", "'.$this->tableHeadColor.'");
@@ -665,7 +791,7 @@
 						$("body").on("click", "#quick_tables_save", function(e){
 							let data = $("#quick_tables_form").serializeArray();
 							e.preventDefault();
-							$.post(server, {saveRow: true, data: data}, function(res){
+							$.post(server, {saveRow: true, data: data, access_token: "'.$this->jwt.'"}, function(res){
 								if(res.hasOwnProperty("saved") && res.saved){
 									quickTablesModal.iziModal("close");
 									table.ajax.reload();
@@ -686,9 +812,12 @@
 						}
 					});
 				</script>
+				<script>
+					localStorage.setItem("access-token", "'.$this->jwt.'");
+				</script>
 				<style>
 					.dataTables_scrollHeadInner, .dataTable{
-						/**width: 100% !important;**/
+                        /** width: 100% !important; **/
 					}
 
 					#quick_tables_modal .View{
@@ -750,6 +879,10 @@
 						background-color: '.$this->tableHeadColor.';
 					}
 
+                    #quick_tables_table {
+                      width: 100% !important;
+                    }
+
 					.dataTables_processing {
 						z-index: 11000 !important;
 					}
@@ -787,28 +920,37 @@
 						height: 34px;
 						width: 88px;
 					}
+
 					#quick_tables_modal #quick_tables_control{
 						text-align: right;
 						margin-right: 16px;
 						margin-bottom: 10px;
 					}
+
 				</style>
 			</div>
 			';
 		}
+
+		public function render(){
+			$this->table($this->tableName, $this->defaultConfig);
+			$this->request = $_GET;
+			$request = count($_GET) ? $_GET:$_POST;
+			$serverOutPut = $this->startAjaxServer($request);
+			$columns = $this->prepareColumnsName();
+			$values = $this->prepareColumnsValues();
+
+			if($serverOutPut){
+				return $serverOutPut;
+			}
+
+			return '
+				<iframe id="quick_tables_iframe" src="/tools/quick_tables/src/rest.php?source=1&access_token='.$this->jwt.'" style="overflow:hidden;height:100%;width:100%" height="100%" width="100%" frameborder="0" allowfullscreen>
+				</iframe>
+
+			';
+
+		}
 	}
 
-	$data = new QuickTables("users");
-	$data->startTransaction();
-	$data->label("name", "Nombre");
-	//$data->query("SELECT * FROM jos_users LIMIT 25;");
-	//$data->columns(["name", "email", "username"]);
-	//$data->label("email", "Correo");
-	//$data->label("name", "Nombre");
-	//$data->label("username", "Nombre Usuario");
-	$data->initOptions([
-		"paging" => "false"
-	]);
-
-	echo $data->render();
 ?>

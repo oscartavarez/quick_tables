@@ -459,7 +459,7 @@ class SSP {
 	 */
 	static function fatal ( $msg )
 	{
-		echo json_encode( array( 
+		echo json_encode( array(
 			"error" => $msg
 		) );
 
@@ -491,7 +491,7 @@ class SSP {
 
 
 	/**
-	 * Pull a particular property from each assoc. array in a numeric array, 
+	 * Pull a particular property from each assoc. array in a numeric array,
 	 * returning and array of the property values from each item.
 	 *
 	 *  @param  array  $a    Array to get data from

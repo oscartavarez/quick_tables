@@ -1,12 +1,18 @@
 <?php
+    require_once("/msw1/configuration.php");
+
 	class Config{
 		public $dbdriver = 'mysql';
 		public $dbname = 'demodev_schoolworx';
 		public $dbprefix = 'jos_';
 		public $dbuser = 'root';
 	   	public $dbpass = '';
-		public $dbhost = '127.0.0.1';
+		public $dbhost = 'msw1-db';
 		public $dboptions = [PDO::MYSQL_ATTR_INIT_COMMAND => 'SET sql_mode=""'];
+		public $path = '/tools/quick_tables/src/';
+		public $secret = '';
+
+        public function __construct(){}
 	}
 
 ?>
